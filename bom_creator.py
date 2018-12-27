@@ -3,14 +3,13 @@ import pandas as pd
 import numpy as np
 import argparse
 
-# Select requirement spreadsheet and load into dataframe
-
+# If using Drag and Drop - get CSV file name from arguments
 parser = argparse.ArgumentParser(description='Process CSV file')
 parser.add_argument('--file', default='')
 args, unknown = parser.parse_known_args()
-
 file_name = args.file
 
+# If File Name is not in Arguments, use GUI file selection
 if '.csv' in file_name:
     bom_file = file_name
 else:
