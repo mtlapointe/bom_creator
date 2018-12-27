@@ -29,7 +29,7 @@ df['File Name'], df['Extension'] = df['Name'].str.strip().str.upper().str.rsplit
 # Drop any non-SW file from the list
 df = df[df['Extension'].isin(['SLDPRT','SLDASM'])].reset_index(drop=True)
 
-# Reset Part Number Column (crap data)
+# Remove data from Part Number Column (crap data from PDM...)
 df['Part Number'] = np.NaN
 
 # Check for NOCONFIG and assign File Name only to Part Number
@@ -42,13 +42,13 @@ df.loc[df['PartNumOverride'].notnull(), ['Part Number']] = df['PartNumOverride']
 # Everything else, set PN to FILENAME + CONFIG
 df.loc[df['Part Number'].isnull(), ['Part Number']] = df['File Name'] + df['Configuration']
 
-# Determine type of part (DSS part/assy or COTS)
+# Determine type of part (DSS part/assy or COTS) using some regex magic
 dss_part_filter = df['Part Number'].str.contains('[1,2][0-9]{2}[F,Q,N,G,E,X][0-9]{4}', na=False)
 df.loc[dss_part_filter & (df['Extension']=='SLDPRT'),'Type'] = 'DSS PART'
 df.loc[dss_part_filter & (df['Extension']=='SLDASM'),'Type'] = 'DSS ASSY'
 df.loc[~dss_part_filter,'Type'] = 'COTS'
 
-# Determine if drawing (DSS -1 number and no duplicate)
+# Determine if drawing (i.e. DSS Part or Assembly is a -1 number and is not duplicate)
 dash1_filter = df['Part Number'].str.contains('[1,2][0-9]{2}[F,Q,N,G,E,X][0-9]{4}-1', na=False)
 df.loc[dash1_filter & (~df.duplicated('Part Number','first')),'Drawing'] = 'Yes'
 
@@ -60,6 +60,10 @@ df['Depth'] = df.loc[~df['Level'].isnull(),'Level'].astype('str').str.count('[.]
 
 # Assign N/A for Material on Assemblies
 df.loc[(df['Material'].isnull()) & (df['Extension']=='SLDASM'), 'Material'] = 'N/A - Assembly'
+
+
+# The following code determines "Total QTY" of a line item based on parent assembly quantities
+# "Used On" is also determined
 
 df['Total QTY'] = df['QTY']
 
@@ -79,7 +83,7 @@ for row_num, row in df.iterrows():
         df.loc[row_num + 1 : next_row - 1, 'Total QTY'] *= row['QTY']
         df.loc[row_num + 1: next_row - 1, 'Used On'] = row['Part Number']
 
-
+# Sum DF of all the individual part quantities:
 parts_df_group = df.loc[df['Type'] != 'DSS ASSY'].groupby(['Part Number', 'Description'])
 part_sum_df = parts_df_group['Total QTY'].agg(np.sum).reset_index()
 
