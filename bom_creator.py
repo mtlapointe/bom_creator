@@ -91,7 +91,8 @@ part_sum_df = parts_df_group['Total QTY'].agg(np.sum).reset_index()
 # OUTPUT DATA TO EXCEL
 
 output_df = df[['Level','Depth','Type','Part Number', 'Description', 'QTY', 'Total QTY', 'Used On', 'Cage Code',
-       'Revision', 'Drawing', 'Duplicate', 'Material', 'Weight', 'State', 'Latest Version']].where((pd.notnull(df)), '')
+       'Revision', 'Drawing', 'Duplicate', 'Material', 'Finish 1', 'Finish 2', 'Finish 3',
+       'Weight', 'State', 'Latest Version']].where((pd.notnull(df)), '')
 
 
 # Setup Excel writer
