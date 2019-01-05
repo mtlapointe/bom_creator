@@ -2,6 +2,8 @@ import easygui
 import pandas as pd
 import numpy as np
 import argparse
+import os
+import datetime
 
 # If using Drag and Drop - get CSV file name from arguments
 parser = argparse.ArgumentParser(description='Process CSV file')
@@ -95,8 +97,13 @@ output_df = df[['Level','Depth','Type','Part Number', 'Description', 'QTY', 'Tot
        'Weight', 'State', 'Latest Version']].where((pd.notnull(df)), '')
 
 
+bom_file_name = os.path.splitext(os.path.basename(bom_file))[0] #File w/ no ext, ex. 1234567.SLDASM.1.BOM
+bom_number = bom_file_name.split('.')[0] # Only assembly number
+
+bom_file_date = datetime.datetime.fromtimestamp(os.path.getatime(bom_file)).strftime('%Y%m%d')
+
 # Setup Excel writer
-writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter', options={'nan_inf_to_errors': True})
+writer = pd.ExcelWriter(f'{bom_file_date} {bom_number}.xlsx', engine='xlsxwriter', options={'nan_inf_to_errors': True})
 
 # Write data to Excel
 output_df.to_excel(writer, sheet_name='BOM', startrow=1, startcol=1, header=False, index=False)
