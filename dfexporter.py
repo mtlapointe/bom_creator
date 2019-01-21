@@ -29,12 +29,13 @@ class DFExport:
 
         header_style = {
             'rotation': 90,
-            'align': 'Left',
+            'align': 'Center',
             'bold': True
         }
 
         index_style = {
-            'bold': True
+            'bold': True,
+            'align': 'Center',
         }
 
         # http://www.color-hex.com/color-palette/2280
@@ -81,20 +82,21 @@ class DFExport:
         self.header_format = self.workbook.add_format({**default_style, **header_style})
         self.index_format = self.workbook.add_format({**default_style, **index_style})
 
-        self.depth_format = []
+        self.highlight_format = []
         for format in depth_colors:
-            self.depth_format.append(self.workbook.add_format({**default_style, **format}))
+            self.highlight_format.append(self.workbook.add_format({**default_style, **format}))
 
-        self.indent_format = []
+        self.indent_format, self.indent_highlight_format = [], []
         for i in range(0, 10):
             self.indent_format.append(self.workbook.add_format({**default_style, **{'indent': i}}))
+            self.indent_highlight_format.append(self.workbook.add_format({**default_style, **{'indent': i}}))
             if i < len(depth_colors):
-                self.indent_format[i].set_bg_color(depth_colors[i]['bg_color'])
-                self.indent_format[i].set_font_color(depth_colors[i]['font_color'])
+                self.indent_highlight_format[i].set_bg_color(depth_colors[i]['bg_color'])
+                self.indent_highlight_format[i].set_font_color(depth_colors[i]['font_color'])
 
 
     def add_sheet(self, df, sheet_name="Sheet1", zoom=85, freeze_row=1, freeze_col=0, cols_to_print=None,
-                  depth_col_name='', cols_to_indent=None, highlight_rows=False, highlight_col_limit=0, group_rows=False,
+                  depth_col_name='', cols_to_indent=None, highlight_depth=False, highlight_col_limit=0, group_rows=False,
                   print_index=True):
 
         # Only output specified DF columns and replace N/A with empty string
@@ -123,49 +125,42 @@ class DFExport:
             worksheet.write(0, col_num + col_offset, value, self.header_format)
 
         # Write index column (no format)
-        if print_index:
-            for row_num, value in enumerate(output_df.index.values):
-                worksheet.write(row_num + 1, 0, value, self.index_format)
+        # if print_index:
+        #    for row_num, value in enumerate(output_df.index.values):
+        #        worksheet.write(row_num + 1, 0, value, self.index_format)
 
 
-        for row_num, row in output_df.iterrows():
+        for row_num, (_, row) in enumerate(output_df.iterrows()):
 
-            if highlight_rows or cols_to_indent or group_rows:
+            # Get the row depth, if needed
+            if highlight_depth or cols_to_indent or group_rows:
                 depth = int(df[depth_col_name].iloc[row_num])
 
             # Write optional index first
+            print_format = self.highlight_format[depth] if highlight_depth else self.index_format
             if print_index:
-                worksheet.write(row_num + 1, 0, output_df.index[row_num], self.index_format)
+                worksheet.write(row_num + 1, 0, output_df.index[row_num], print_format)
 
             # Write rest of the row
             for col_num in range(len(row)):
-                if output_df.dtypes[col_num] == 'int64':
-                    worksheet.write_number(row_num + 1, col_num + col_offset, row[col_num], self.default_format)
+
+                indent_col = cols_to_indent is not None and output_df.columns[col_num] in cols_to_indent
+                highlight_col = highlight_depth and \
+                                (highlight_col_limit==0 or col_num < highlight_col_limit-col_offset)
+
+                if indent_col and highlight_col:
+                    print_format = self.indent_highlight_format[depth]
+                elif indent_col:
+                    print_format = self.indent_format[depth]
+                elif highlight_col:
+                    print_format = self.highlight_format[depth]
                 else:
-                    worksheet.write_string(row_num + 1, col_num + col_offset, str(row[col_num]), self.default_format)
+                    print_format = self.default_format
 
-            # Re-write rows if highlighting wanted
-            if highlight_rows:
-
-                # Re-write optional index
-                if print_index:
-                    worksheet.write(row_num + 1, 0, row_num, self.depth_format[depth])
-
-                # Re-write rest of highlighted row:
-                for col_num in range(highlight_col_limit or len(row)):
-                    if output_df.dtypes[col_num] == 'int64':
-                        worksheet.write_number(row_num + 1, col_num + col_offset, row[col_num],
-                                               self.depth_format[depth])
-                    else:
-                        worksheet.write_string(row_num + 1, col_num + col_offset, str(row[col_num]),
-                                               self.depth_format[depth])
-
-            # Re-write part number to get indent
-            if cols_to_indent:
-                for col in cols_to_indent:
-                    value = row[col]
-                    worksheet.write(row_num + 1, df.columns.get_loc(col)+col_offset, value,
-                                    self.indent_format[depth])
+                if output_df.dtypes[col_num] == 'int64':
+                    worksheet.write_number(row_num + 1, col_num + col_offset, row[col_num], print_format)
+                else:
+                    worksheet.write_string(row_num + 1, col_num + col_offset, str(row[col_num]), print_format)
 
             if group_rows:
                 if depth > 0:
@@ -178,6 +173,12 @@ class DFExport:
 
     def write_book(self):
         self.writer.save()
+
+    def add_raw_sheet(self, df, sheet_name):
+        # Write data to Excel
+        df.to_excel(self.writer, sheet_name=sheet_name,
+                           header=True, index=True)
+
 
 
     def __get_col_widths(self, df):
