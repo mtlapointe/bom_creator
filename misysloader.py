@@ -1,3 +1,6 @@
+""" NOTE - You need to download the Microsoft ODBC Driver 17 for this code to work
+https://www.microsoft.com/en-us/download/details.aspx?id=56567"""
+
 import pandas
 import pyodbc
 import dfexporter
@@ -77,7 +80,7 @@ class MisysTable:
 def example():
     """ Example use """
     misys = MisysTable()
-    df = misys.load_po_data(2500)
+    df = misys.load_po_data(4000)
     export(df)
 
 
