@@ -73,11 +73,12 @@ class MisysTable:
         self.load_raw_po_df(row_limit).to_excel(file_name)
 
 
-# Tester Code
 
-misys = MisysTable()
-df = misys.load_po_data(2500)
-export(df)
+def example():
+    """ Example use """
+    misys = MisysTable()
+    df = misys.load_po_data(2500)
+    export(df)
 
 
 def export(dataframe):
