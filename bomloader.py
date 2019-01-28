@@ -73,14 +73,14 @@ class BOM:
 
         # For DSS PNs, strip out anything after the dash number (ex. 100-DEPLOYED)
         # https://stackoverflow.com/a/41609175/6475884 <- how the regex replace works
-        self.df['Part Number'].replace(to_replace=r"^([1,2][0-9]{2}[F,Q,N,G,E,X][0-9]{4}[-][0-9]*).*",
+        self.df['Part Number'].replace(to_replace=r"^([1,2][0-9]{2}[F,Q,N,G,E,X,T][0-9]{4}[-][0-9]*).*",
                                        value=r"\1", regex=True, inplace=True)
 
 
     def __determine_part_type(self):
         """Determine type of item (DSS part/assy or COTS) using some regex magic"""
 
-        dss_part_filter = self.df['Part Number'].str.contains('[1,2][0-9]{2}[F,Q,N,G,E,X][0-9]{4}', na=False)
+        dss_part_filter = self.df['Part Number'].str.contains('[1,2][0-9]{2}[F,Q,N,G,E,X,T][0-9]{4}', na=False)
         self.df.loc[dss_part_filter & (self.df['Extension'] == 'SLDPRT'), 'Type'] = 'DSS PART'
         self.df.loc[dss_part_filter & (self.df['Extension'] == 'SLDASM'), 'Type'] = 'DSS ASSY'
         self.df.loc[~dss_part_filter, 'Type'] = 'COTS'
@@ -88,12 +88,12 @@ class BOM:
 
     def __more_stuff(self):
         # Determine drawing number from valid DSS items
-        dss_drw_filter = self.df['Part Number'].str.contains('^[1,2][0-9]{2}[F,Q,N,G,E,X][0-9]{4}', na=False)
+        dss_drw_filter = self.df['Part Number'].str.contains('^[1,2][0-9]{2}[F,Q,N,G,E,X,T][0-9]{4}', na=False)
         self.df['Drawing Number'] = self.df['Part Number'].loc[dss_drw_filter].replace(
-            to_replace=r"^([1,2][0-9]{2}[F,Q,N,G,E,X][0-9]{4}).*", value=r"\1", regex=True)
+            to_replace=r"^([1,2][0-9]{2}[F,Q,N,G,E,X,T][0-9]{4}).*", value=r"\1", regex=True)
 
         # Determine if drawing (i.e. DSS Part or Assembly is a -1 number and is not duplicate)
-        dash1_filter = self.df['Part Number'].str.contains('[1,2][0-9]{2}[F,Q,N,G,E,X][0-9]{4}(-1$|-1_)', na=False)
+        dash1_filter = self.df['Part Number'].str.contains('[1,2][0-9]{2}[F,Q,N,G,E,X,T][0-9]{4}(-1$|-1_)', na=False)
         self.df.loc[dash1_filter & (~self.df.duplicated('Part Number', 'first')), 'Drawing'] = 'Yes'
 
         # Mark duplicate parts
