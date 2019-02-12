@@ -11,9 +11,10 @@ import warnings
 import datetime
 import easygui
 
+
 class MisysTable:
 
-    def __init__(self,force_update=False):
+    def __init__(self, force_update=False):
         self.server = '192.168.75.21,1500'
         self.database = 'DSS'
         self.cache_dir = 'cache'
@@ -21,7 +22,6 @@ class MisysTable:
         self.username = 'exporter'
         self.password = 'password'
         self.force_update = force_update
-
 
     def load_sql(self, sql, cache_name):
         """ Connect to MISys DB, run SQL query and return results as DF """
@@ -65,16 +65,14 @@ class MisysTable:
         else:
             raise Exception('Cannot read data from DB or cache!!')
 
-
-
     def fetch_po_data(self, row_limit=None):
         """ Canned SQL that gets PO line item data from MIPOH and MIPOD tables """
         sql = (f'SELECT {f"TOP {row_limit}" if row_limit else ""} '
                'MIPOD.[pohId] AS [PO Number], '
                'MIPOH.[name] AS [Supplier], '
-               'MIPOD.[lineNbr] AS [PO Line Number], '               
+               'MIPOD.[lineNbr] AS [PO Line Number], '
                'MIPOD.[dStatus] AS Status, '
-               'MIPOD.[jobId] AS [Job ID], '               
+               'MIPOD.[jobId] AS [Job ID], '
                'MIPOD.[itemId] AS [Item Number], '
                'MIPOD.[viCode] AS [Misc Item Number], '
                'MIPOD.[descr] AS [Description], '
@@ -102,11 +100,10 @@ class MisysTable:
                                          choices=df['Job ID'].sort_values().unique())
         return df.loc[df['Job ID'].isin(jobs)]
 
-
     def load_po_data(self, filter_jobs=None):
         df = self.fetch_po_data()
         # Join Item Number and Misc Item Number
-        #df['Product Number'] = df['Item Number'].combine_first(df['Misc Item Number'])
+        # df['Product Number'] = df['Item Number'].combine_first(df['Misc Item Number'])
         df.insert(7, 'Product Number', df['Item Number'].combine_first(df['Misc Item Number']))
 
         # Regex to split off DSS number from REV or other info
@@ -114,14 +111,15 @@ class MisysTable:
         split_dss_number = df['Product Number'].str.extract(split_dss_num_regex)
         df['Product Number'] = split_dss_number[0].fillna(df['Product Number'])
         df.insert(8, 'Product Revision', split_dss_number[1])
-        df.drop(['Item Number','Misc Item Number'], axis=1, inplace=True)
+        df.drop(['Item Number', 'Misc Item Number'], axis=1, inplace=True)
+
+        df['Qty Ordered'] = df['Qty Ordered'].astype('int64')
+        df['Qty Recd'] = df['Qty Recd'].astype('int64')
 
         # Filter by jobs
         df = self.po_data_job_filter(df)
 
         return df
-
-
 
     def load_table(self, table, row_limit=None):
         """ Runs SELECT * from specified table. Can limit number of rows. """
@@ -132,7 +130,7 @@ class MisysTable:
         """ Loads PO Line and PO Header tables in DF's, then does a pandas join. Slow than a SQL join, but don't
         have to deal with conflicting header column names """
         mipoh = misys.load_table('MIPOH')
-        mipod = misys.load_table('MIPOD',row_limit)
+        mipod = misys.load_table('MIPOD', row_limit)
         df = mipoh.join(mipod.set_index('pohId'), on='pohId', lsuffix='_mipod', rsuffix='_mipoh', how='right') \
             .reset_index()
         return df
@@ -165,10 +163,11 @@ class MisysTable:
     def cache_age(self, cache_name):
         cache_path = f'{self.cache_dir}/{cache_name}'
         if os.path.exists(cache_path):
-            cache_age = datetime.datetime.now() - datetime.datetime.fromtimestamp(os.path.getatime(cache_path))
-            return cache_age.seconds/3600
+            cache_age = datetime.datetime.now() - datetime.datetime.fromtimestamp(os.path.getmtime(cache_path))
+            return cache_age.total_seconds() / (60 * 60)
         else:
             return 0
+
 
 def example():
     """ Example use """
@@ -181,5 +180,12 @@ def export(dataframe):
     """ Exports DF to Excel using pretty format """
     excel = dfexporter.DFExport('misys.xlsx')
     excel.add_sheet(dataframe)
+    excel.add_raw_sheet(dataframe, 'raw')
     excel.write_book()
 
+
+def test():
+    for row_num, (_, row) in enumerate(output_df.iterrows()):
+        for col_num in range(len(row)):
+            misys = MisysTable()
+    df = misys.load_po_data()
