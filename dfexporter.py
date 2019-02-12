@@ -2,9 +2,10 @@ import pandas as pd
 from datetime import datetime as dt
 import xlsxwriter
 
+
 class DFExport:
 
-    def __init__(self, output_file_name = "output.xlsx"):
+    def __init__(self, output_file_name="output.xlsx"):
         """ Create BOMExporter object. Use given output file name or default. """
 
         self.output_file_name = output_file_name
@@ -15,11 +16,10 @@ class DFExport:
 
         self.__load_default_style()
 
-
     def __load_default_style(self):
         """ Setup default sheet styles for xlsxwriter """
 
-        base_styles={}
+        base_styles = {}
 
         base_styles['default'] = {
             'bold': False,
@@ -72,39 +72,37 @@ class DFExport:
              'font_color': 'black'},
         ]
 
-
         cell_styles = {}
         for base, base_style in base_styles.items():
 
-            cell_styles[(base,None,None)] = base_style
+            cell_styles[(base, None, None)] = base_style
 
             for depth in range(10):
                 # Get depth colors, or use default if out of range
-                colors = depth_colors[depth] if depth<len(depth_colors) else {}
+                colors = depth_colors[depth] if depth < len(depth_colors) else {}
 
                 highlight_style = {**base_style, **colors}
                 indent_style = {**base_style, 'indent': depth}
 
-                cell_styles[(base,depth,'highlight')] = highlight_style
-                cell_styles[(base,depth,'indent')] = indent_style
-                cell_styles[(base,depth,'indent_highlight')] = {**indent_style, **highlight_style}
+                cell_styles[(base, depth, 'highlight')] = highlight_style
+                cell_styles[(base, depth, 'indent')] = indent_style
+                cell_styles[(base, depth, 'indent_highlight')] = {**indent_style, **highlight_style}
 
         self.cell_format = {}
         for cell_type, style in cell_styles.items():
             self.cell_format[cell_type] = self.workbook.add_format(style)
 
-
-
     def add_sheet(self, df, sheet_name="Sheet1", zoom=85, freeze_row=1, freeze_col=0, cols_to_print=None,
-                  depth_col_name='', cols_to_indent=None, highlight_depth=False, highlight_col_limit=0, group_rows=False,
+                  depth_col_name='', cols_to_indent=None, highlight_depth=False, highlight_col_limit=0,
+                  group_rows=False,
                   print_index=True):
         """ Take DF and creates new sheet with various options. """
 
         # Create output DF with only cols to print and replace N/A with empty string
         if cols_to_print:
-            output_df = df[cols_to_print] #.where((pd.notnull(df)), '')
+            output_df = df[cols_to_print]  # .where((pd.notnull(df)), '')
         else:
-            output_df = df #.where((pd.notnull(df)), '')
+            output_df = df  # .where((pd.notnull(df)), '')
 
         # If index column exists, need offset to shift all other columns
         index_col_offset = 1 if print_index else 0
@@ -145,7 +143,7 @@ class DFExport:
                 # Check if column should be highlighted and/or indented
                 indent_col = cols_to_indent is not None and output_df.columns[col_num] in cols_to_indent
                 highlight_col = highlight_depth and \
-                                (highlight_col_limit==0 or col_num < highlight_col_limit-index_col_offset)
+                                (highlight_col_limit == 0 or col_num < highlight_col_limit - index_col_offset)
 
                 # Choose the correct format option to use
                 if indent_col and highlight_col:
@@ -189,9 +187,9 @@ class DFExport:
 
             # After the index column, check type and override width if necessary
             if col_num > 0:
-                if output_df.dtypes[col_num-1] in ['float64']:
+                if output_df.dtypes[col_num - 1] in ['float64']:
                     width = 8
-                elif output_df.dtypes[col_num-1] in ['datetime64[ns]']:
+                elif output_df.dtypes[col_num - 1] in ['datetime64[ns]']:
                     width = 8
 
             # If not printing index, skip to the first column and offset
@@ -201,18 +199,15 @@ class DFExport:
 
             worksheet.set_column(col_num, col_num, width + 2)
 
-
     def write_book(self):
         """ Writes workbook to file after all sheets are added. """
-        #self.writer.save()
+        # self.writer.save()
         self.workbook.close()
-
 
     def add_raw_sheet(self, df, sheet_name):
         """ Add a sheet with default pandas formatting """
-        #df.to_excel(self.writer, sheet_name=sheet_name, header=True, index=True)
+        # df.to_excel(self.writer, sheet_name=sheet_name, header=True, index=True)
         pass
-
 
     def __get_col_widths(self, df):
         """ Return max lengths for each column in DF """
