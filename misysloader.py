@@ -14,11 +14,11 @@ import easygui
 
 class MisysTable:
 
-    def __init__(self, force_update=False):
+    def __init__(self, force_update=False, cache_age_limit=24):
         self.server = '192.168.75.21,1500'
         self.database = 'DSS'
         self.cache_dir = 'cache'
-        self.cache_age_limit = 24
+        self.cache_age_limit = cache_age_limit
         self.username = 'exporter'
         self.password = 'password'
         self.force_update = force_update
@@ -96,7 +96,7 @@ class MisysTable:
     def po_data_job_filter(self, df, jobs=None):
         """ Filters PO data DF by 'Job ID' with given list, or if none, prompts user. Returns filtered DF. """
         if jobs is None:
-            jobs = easygui.multchoicebox('Which jobs do you want included?',
+            jobs = easygui.multchoicebox('Which MISys jobs do you want included?',
                                          choices=df['Job ID'].sort_values().unique())
         return df.loc[df['Job ID'].isin(jobs)]
 

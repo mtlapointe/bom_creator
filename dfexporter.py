@@ -94,8 +94,7 @@ class DFExport:
 
     def add_sheet(self, df, sheet_name="Sheet1", zoom=85, freeze_row=1, freeze_col=0, cols_to_print=None,
                   depth_col_name='', cols_to_indent=None, highlight_depth=False, highlight_col_limit=0,
-                  group_rows=False,
-                  print_index=True):
+                  group_rows=False, print_index=True, col_formats={}, col_style={}):
         """ Take DF and creates new sheet with various options. """
 
         # Create output DF with only cols to print and replace N/A with empty string
@@ -108,12 +107,18 @@ class DFExport:
         index_col_offset = 1 if print_index else 0
 
         # Write data to Excel
-
         worksheet = self.workbook.add_worksheet(sheet_name)
 
         # Set zoom and freeze panes location
         worksheet.set_zoom(zoom)
         worksheet.freeze_panes(freeze_row, freeze_col)
+
+        # UGLY!! Add custom format
+        if 'custom' in col_formats.values():
+            custom_format={}
+            for col_name, style in col_style.items():
+                custom_format[col_name] = self.workbook.add_format(style)
+
 
         # Write the column headers with the defined format.
         if print_index:
@@ -140,8 +145,10 @@ class DFExport:
             # Write rest of the row
             for col_num in range(len(output_df.columns)):
 
+                col_name = output_df.columns[col_num]
+
                 # Check if column should be highlighted and/or indented
-                indent_col = cols_to_indent is not None and output_df.columns[col_num] in cols_to_indent
+                indent_col = cols_to_indent is not None and col_name in cols_to_indent
                 highlight_col = highlight_depth and \
                                 (highlight_col_limit == 0 or col_num < highlight_col_limit - index_col_offset)
 
@@ -158,23 +165,33 @@ class DFExport:
                 # Get value from DF
                 df_value = output_df.iloc[row_num, col_num]
 
-                # Set as empty string if null
-                value = df_value if pd.notnull(df_value) else ''
-                value_type = output_df.dtypes[col_num] if pd.notnull(df_value) else None
+                # Set as empty string if null - values could be lists also, hence the .any()
+                value = df_value if pd.notnull([df_value]).any() else ''
+                value_type = output_df.dtypes[col_num] if pd.notnull([df_value]).any() else None
 
                 # Write data as number or string
-                if value_type in ['float64']:
+                if col_formats.get(col_name)=='custom':
+                    worksheet.write(row_num + 1, col_num + index_col_offset, value,
+                                    custom_format[col_name])
+
+                elif value_type in ['float64'] or col_formats.get(col_name)=='float':
                     worksheet.write_number(row_num + 1, col_num + index_col_offset, value,
                                            self.cell_format[('float', depth, format_option)])
-                elif value_type in ['int64']:
+
+                elif value_type in ['int64', 'Int64'] or col_formats.get(col_name)=='int':
                     worksheet.write_number(row_num + 1, col_num + index_col_offset, value,
                                            self.cell_format[('default', depth, format_option)])
 
-                elif value_type in ['datetime64[ns]', '<M8[ns]']:
+                elif value_type in ['datetime64[ns]', '<M8[ns]'] or col_formats.get(col_name)=='date':
                     worksheet.write_datetime(row_num + 1, col_num + index_col_offset, value,
                                              self.cell_format[('date', depth, format_option)])
-                else:
+
+                elif col_formats.get(col_name)=='string':
                     worksheet.write_string(row_num + 1, col_num + index_col_offset, str(value),
+                                    self.cell_format[('default', depth, format_option)])
+
+                else:
+                    worksheet.write(row_num + 1, col_num + index_col_offset, str(value),
                                            self.cell_format[('default', depth, format_option)])
 
             # Set optional grouping of rows
@@ -190,6 +207,8 @@ class DFExport:
                 if output_df.dtypes[col_num - 1] in ['float64']:
                     width = 8
                 elif output_df.dtypes[col_num - 1] in ['datetime64[ns]']:
+                    width = 8
+                elif width>80:
                     width = 8
 
             # If not printing index, skip to the first column and offset

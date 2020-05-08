@@ -1,32 +1,63 @@
+""" Module used to load BOM CSV file from PDM into a Pandas DataFrame
+
+    Typical usage example:
+    TBD
+"""
+
 import pandas as pd
 import numpy as np
 import easygui
 import os
 import datetime
 import math
-
 import warnings
 
 warnings.filterwarnings("ignore", 'This pattern has match groups')
 
 
 class BOM:
+    """ BOM class loads CSV BOM file and converts into a clean Pandas DataFrame
+
+        Attributes:
+            file_path: File path of CSV file
+            raw_df: DataFrame with unprocessed CSV data
+    """
 
     def __init__(self, file_path=None):
+        """ Constructor for class, can optionally load CSV from given file path.
+
+        Args:
+            file_path (str, optional): File path for CSV file to load
+        """
         if file_path:
             self.file_path = file_path
             self.load_csv(file_path)
 
     def load_csv(self, file_path=None):
-        """ Load CSV from given path, or if None given, prompt user using GUI."""
+        """ Load CSV from given path, or if None given, prompt user using GUI.
 
+        Args:
+            file_path (str, optional): File path for CSV file to load
+
+        Returns:
+            Self instance of class object
+        """
+
+        # Prompt user for file path if none given
         if file_path is None:
             self.file_path = easygui.fileopenbox(msg='Choose PDM BOM CSV file', default='*.csv',
                                                  filetypes=[["*.csv", "All files"]])
         else:
             self.file_path = file_path
 
-        self.__read_csv_file()
+        # Read CSV file into DataFrame. Throw error if trying to read non-CSV
+        if '.csv' not in self.file_path:
+            raise RuntimeError("Trying to load a non-CSV file...")
+
+        self.df = pd.read_csv(self.file_path, encoding='utf_16', dtype={'Level': object},
+                              float_precision='round_trip', error_bad_lines=False)
+
+        # Create copy of DataFrame for raw data
         self.raw_df = self.df.copy()
 
         # Create a unique Unique ID for each line
@@ -42,6 +73,19 @@ class BOM:
         self.__get_used_on()
         self.__get_total_qty()
         self.__more_stuff()
+
+        # Cast specific data types
+        Int64 = pd.Int64Dtype()
+
+        data_types = {'Depth': Int64,
+                      'ID': Int64,
+                      'Latest Version': Int64,
+                      'QTY': Int64,
+                      'Unique ID': Int64,
+                      'Parent ID': Int64,
+                      'Total QTY': Int64}
+
+        self.df = self.df.astype(data_types)
 
         return self
 
@@ -105,27 +149,6 @@ class BOM:
 
         # Assign N/A for Material on Assemblies
         self.df.loc[(self.df['Material'].isnull()) & (self.df['Extension'] == 'SLDASM'), 'Material'] = 'N/A - Assembly'
-
-        # The following code determines "Total QTY" of a line item based on parent assembly quantities
-        # "Used On" is also determined
-
-        # self.df['Total QTY'] = self.df['QTY']
-
-        # for row_num, row in self.df.iterrows():
-        #     row_depth = row['Depth']
-        #
-        #     # Filter all rows after current with the same depth
-        #     same_depth_rows = self.df.loc[row_num + 1:].loc[self.df['Depth'] <= row_depth]
-        #
-        #     # Get index of next row at same depth or set to None
-        #     next_row = same_depth_rows.head().index[0] if len(same_depth_rows) else 0
-        #
-        #     self.df.loc[row_num, 'Next Row'] = next_row
-        #
-        #     # Multiply all lower rows by current row QTY
-        #     if next_row > row_num + 1:
-        #         self.df.loc[row_num + 1: next_row - 1, 'Total QTY'] *= row['QTY']
-        #         self.df.loc[row_num + 1: next_row - 1, 'Used On'] = row['Part Number']
 
     def __sort_df(self):
 
@@ -272,5 +295,11 @@ def export():
     excel_export.write_book()
 
 
+def test():
+    global bom
+
+    bom = BOM(file_path='test/test.csv')
+
+
 if __name__ == 'builtins':
-    main()
+    test()
